@@ -1,0 +1,23 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: argocd-task-sync-and-wait
+spec:
+  params:
+    - name: flags
+      default: --
+    - name: argocd-version
+      default: v1.7.6
+  stepTemplate:
+    envFrom:
+      - configMapRef:
+          name: argocd-env-configmap  # used for server address
+      - secretRef:
+          name: argocd-env-secret  # used for authentication (username/password or auth token)
+  steps:
+    - name: argocd-app-sync
+      image: argoproj/argocd:$(params.argocd-version)
+      script: |
+        argocd login $ARGOCD_SERVER --grpc-web-root-path /argo-cd --username $ARGOCD_USERNAME --password $ARGOCD_PASSWORD
+        argocd app sync $ARGOCD_APPLICATION_NAME $(params.flags) --grpc-web-root-path /argo-cd --server $ARGOCD_SERVER
+        argocd app wait $ARGOCD_APPLICATION_NAME --health $(params.flags) --grpc-web-root-path /argo-cd --server $ARGOCD_SERVER
